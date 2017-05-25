@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>塔防小游戏</title>
+	<style type="text/css">
+		*{
+			margin:0px;
+			padding:0px;
+		}
+		#div1{
+			margin:20px auto;
+			position:relative;
+		}
+		.box1{
+			width:50px;
+			height:50px;
+			background-color:#000;
+			float:left;
+		}
+		.box2{
+			width:50px;
+			height:50px;
+			background-color:#fff;
+			float:left;
+		}
+		.box3{
+			width:50px;
+			height:50px;
+			background-color:yellow;
+			float:left;
+			text-align:center;
+			line-height:50px;
+		}
+		.box4{
+			width:50px;
+			height:50px;
+			background-color:lime;
+			float:left;
+			text-align:center;
+			line-height:50px;
+		}
+		#start{
+			position:absolute;
+			top:83%;
+			left:45%;
+			width:50px;
+			height:25px;
+		}
+		#money{
+			position:absolute;
+			top:83%;
+			left:50%;
+			width:50px;
+			height:25px;
+		}
+		.active{
+			background-color:red;
+		}
+		.pt1{
+			width:50px;
+			height:50px;
+			background:url(pt1.jpg) no-repeat;
+			float:left;
+		}
+		.gw1{
+			width:50px;
+			height:50px;
+			background:url(gw1.jpg) no-repeat;
+			position:absolute;
+		}
+		.biu1{
+			width:5px;
+			height:5px;
+			background-color:pink;
+			position:absolute;
+		}
+	</style>
+</head>
+<body>
+	<input type="button" id="start" value="开始" />
+	<input type="button" id="money" value="200" />
+	<div id="div1"></div>
+
+	<script type="text/javascript" src="jquery-1.11.1.min.js"></script>
+	<script type="text/javascript">
+		$(function(){
+			//游戏部分
+			//1.游戏初始化数据
+			//地图的生成
+			var Game={
+				arrMap:[
+					//地图  规定:  1为黑色地图  2为白色怪物区域  3为开始  4为结束
+					1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+					1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+					1,1,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,
+					1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,
+					1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,
+					1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,1,1,1,
+					1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,
+					1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,1,1,1,
+					1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,
+					1,1,1,1,1,1,4,1,1,1,1,1,1,1,1,1,1,1,1,1
+				],
+				arrRoute:[
+					0,0,'1B',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+					0,0,'2R',0,0,0,0,0,0,'3B',0,0,0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,0,0,0,'4R',0,0,0,0,0,0,'5B',0,0,0,
+					0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,'7B',0,0,0,0,0,0,0,0,0,'6L',0,0,0,
+					0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+					0,0,0,0,0,0,'8B',0,0,0,0,0,0,0,0,0,0,0,0,0
+				],
+				routeDir:[],            //路线的方向的收集器
+				routeSpeed:[],			//路线的速度的收集器
+				routeTarget:[],			//路线的目标的收集器
+				startElement:null,      //起始
+				endELement:null,        //结束
+				colNum:20,              //一行的个数
+				boxWidth:50,            //格子的大小
+				gwBlood:100,        //怪物血量
+				gwMoney:10,         //打死怪物后获得的金钱
+				gwSpeed:5,          //怪物运行的速度
+				ptMoney:50,             //创建一个炮台的初始价格
+				biuRange:100,           //子弹的攻击范围
+				biuSpeed:10,			//子弹的攻击速度
+				biuPower:10,			//子弹的攻击力
+
+				init:function(){
+					this.createMap();
+					this.events();
+					this.listener();
+				},
+				createMap:function(){
+					var This=this;     //指向全局的this
+					//创建地图
+					$("#div1").css("width",this.colNum*this.boxWidth);
+					//循环
+					$.each(this.arrMap,function(i,value){
+						var mydiv=$("<div class='box"+value+"'></div>");
+						if(value==3){
+							mydiv.html("起始");
+							This.startElement=mydiv;
+						}else if(value==4){
+							mydiv.html("结束");
+							This.endELement=mydiv;
+						}
+						//添加到盒子里面
+						$("#div1").append(mydiv);
+					});
+					//收集路线
+					this.routes();
+				},
+				events:function(){      //专门做事件的操作
+					var This=this;   //全局的this
+					$("#start").click(function(){
+						//点击开始
+						This.createListGW();
+					});
+					$(".box1").bind({
+						mouseover:function(){
+							$(this).addClass("active");
+						},
+						mouseout:function(){
+							$(this).removeClass("active");
+						},
+						click:function(){
+							This.createPT(this);
+						}
+					});
+				},
+				createListGW:function(){     //创建怪物队列
+					var This=this;
+					var inum=10;              //一波有多少怪物
+					var timer=setInterval(function(){
+						if(inum==0){
+							clearInterval(timer);
+						}else{
+							This.createGW();
+							inum--;    //生成一个,怪物数量减少一个
+						}
+					},500);
+				},
+				createGW:function(){
+					var gwdiv=$('<div class="gw1"></div>');
+					//设置怪物出现的起始位置
+					var x=this.startElement.position().left;   //这里的position并不一定是要你
+					var y=this.startElement.position().top;	   //绝对定位或者相对定位才能取值
+					console.log(x +"------"+ y);
+					gwdiv.css({left:x,top:y});
+
+					//怪物的属性
+					gwdiv.blood=this.gwBlood;
+					gwdiv.money=this.gwMoney;
+					//添加到地图里面去
+					$("#div1").append(gwdiv);
+					//怪物开始运动
+					this.runGW(gwdiv);
+				},
+				routes:function(){         //收集怪物运动的路径
+					var This=this;
+					var arr=[];
+					var divs=$("#div1").find("div");   //得到所有的div
+					$.each(this.arrRoute,function(i,value){
+						if(value!=0){
+							arr.push({dir:value,xy:i});   //方向,位置
+						}
+					});
+					arr.sort(function(val1,val2){            //我们要改的只有6和7
+						return val1.dir.substring(0,1) - val2.dir.substring(0,1);
+					});
+					//循环这个arr,开始收集数据
+					$.each(arr,function(i,value){
+						var dir=value.dir.substring(1);
+						if( i== arr.length-1 ){
+							return false;
+						}
+						switch(dir){
+							case "B":
+								This.routeDir.push("top");
+								This.routeSpeed.push(This.gwSpeed);
+															//指向下一个目标
+								This.routeTarget.push( divs.eq( arr[i+1].xy ).position().top );
+								break;
+							case "L":
+								This.routeDir.push("left");
+								This.routeSpeed.push(-This.gwSpeed);
+															//指向下一个目标
+								This.routeTarget.push( divs.eq( arr[i+1].xy ).position().left );
+								break;
+							case "R":
+								This.routeDir.push("left");
+								This.routeSpeed.push(This.gwSpeed);
+															//指向下一个目标
+								This.routeTarget.push( divs.eq( arr[i+1].xy ).position().left );
+								break;
+							case "T":
+								This.routeDir.push("top");
+								This.routeSpeed.push(-This.gwSpeed);
+															//指向下一个目标
+								This.routeTarget.push( divs.eq( arr[i+1].xy ).position().top );
+								break;
+						}
+					});
+				},
+				runGW:function(gw){        //怪物开始运动
+					var This=this;
+					var i=0;
+					var val=0;
+					gw.timer=setInterval(function(){
+									//绝对值  如果你已经到达目标点,那么就需要改变方向了
+						if( Math.abs( val-This.routeTarget[i] ) <= 1){
+							if( i==This.routeTarget.length-1 ){
+								clearInterval( gw.timer );
+								alert("游戏结束");
+								return false;
+							}else{
+								i++;
+							}
+						}
+						//不断的改变位置
+						val=gw.position()[ This.routeDir[i] ]+ This.routeSpeed[i];
+						//设置
+						gw.css(This.routeDir[i],val);
+					},50);
+				},
+				createPT:function(elem){
+					//首先判断你有没有钱  还有判断你这个div是不是已经有了炮台
+					console.log( $(elem).attr("class") );
+					if( parseInt( $("#money").val() ) >= this.ptMoney  &&　$(elem).attr("class")!="pt1" && $(elem).attr("class")!="pt1 active" ){
+						$(elem).attr("class","pt1");
+						//修改金钱
+						this.changeMoney(-this.ptMoney);
+					}  
+				},
+				changeMoney:function(money){
+					var num=parseInt( $("#money").val() )+money;
+					$("#money").val(num);
+				},
+				listener:function(){
+					var This=this;
+					//监听是否攻击
+					var pt=$("#div1").find(".pt1");
+					pt.each(function(index,element){
+						//监听炮台是否能够攻击怪物
+						This.listenerGW(this);
+					});
+					setTimeout(function(){
+						This.listener();   //时刻都要监听
+					},100);
+				},
+				listenerGW:function(pt){
+					var This=this;
+					//监听怪物,计算距离,计算怪物和这个炮台之间的距离是否小于炮台的攻击范围
+					var gw=$("#div1").find(".gw1");
+					pt.arr=[];    //这个arr用来存放攻击
+					gw.each(function(index,element){
+						//判断距离
+						if( This.disRange( $(pt),$(element)) <= This.biuRange ){
+							pt.arr.push( element );   //炮台能够攻击怪物
+						}
+					});
+					this.listenerBiu(pt);
+				},
+				disRange:function(obj1,obj2){
+					//利用勾股定理来计算
+					var a=obj1.offset().left-obj2.offset().left;
+					var b=obj1.offset().top-obj2.offset().top;
+					return Math.sqrt(a*a+b*b);
+				},
+				listenerBiu:function(pt){
+					//监听子弹
+					if(pt.arr.length){
+						var biu=$('<span class="biu1"></span>');
+						//计算子弹的位置  在炮台的中心位置发出
+						biu.css({left:$(pt).position().left +$(pt).width()/2,top:$(pt).position().top+$(pt).height()/2});
+						//追加到这个炮台里面
+						$(pt).append(biu);
+						//开始攻击
+						this.runBiu(pt,biu);
+					}
+				},
+				runBiu:function(pt,biu){
+					//开始攻击
+					var This=this;
+					var timer=setInterval(function(){
+						//如果怪物都被打死了,那么就不攻击了
+						if(!pt.arr.length){
+							clearInterval(timer);
+							pt.innerHTML="";   //清除子弹
+							return false;
+						}
+						//计算子弹的路径
+						var a=( $(pt.arr[pt.arr.length-1]).offset().left + This.boxWidth/2 )-biu.offset().left;
+						var b=( $(pt.arr[pt.arr.length-1]).offset().top + This.boxWidth/2 )-biu.offset().top;
+						var c=Math.sqrt( a*a+b*b );
+						//利用sin和cos来计算left和top里面的值
+						var argx=a/c;
+						var argy=b/c;
+						biu.css({left:biu.position().left + argx*This.biuSpeed, top:biu.position().top + argy*This.biuSpeed});
+
+						//计算攻击力,伤害和怪物的血量
+						if("碰撞检测"){  
+						 //检测,看子弹是否已经碰到怪物中心,如果打到了,就开始减少血量
+							pt.arr[pt.arr.length-1].blood=pt.arr[pt.arr.length-1].blood -This.biuPower;
+							if( !pt.arr[pt.arr.length-1].blood ){
+								clearInterval(pt.arr[pt.arr.length-1].timer);
+								$( pt.arr[pt.arr.length-1] ).remove();
+								//加钱
+								This.changeMoney( pt.arr[pt.arr.length-1].money );
+							}
+						}
+					},30);
+				}
+
+			};
+
+			Game.init();
+		})
+	</script>
+</body>
+</html>
